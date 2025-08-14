@@ -12,7 +12,10 @@ from botbuilder.schema import ChannelAccount, Activity
 from langchain_core.messages import HumanMessage, AIMessage
 from dotenv import load_dotenv
 
-# Import your agent (now in the same directory)
+# Add the agent directory to the path
+sys.path.append(os.path.join(os.path.dirname(__file__), 'agent'))
+
+# Import your agent from the agent folder
 from qwen_agent import create_gemini_conversational_agent
 
 load_dotenv()
@@ -43,10 +46,10 @@ class TeamsBot(ActivityHandler):
             if conversation_id not in self.chat_histories:
                 self.chat_histories[conversation_id] = []
 
-            # Send typing indicator to show bot is working
-            typing_activity = MessageFactory.text("🔄 Processing your request...")
-            typing_activity.type = "typing"
-            await turn_context.send_activity(typing_activity)
+            # Send typing indicator
+            await turn_context.send_activity(
+                MessageFactory.text("🔄 Processing your request...")
+            )
 
             # Process with your agent
             response = self.agent.invoke({
@@ -81,28 +84,14 @@ I can help you with database operations. Here are some things you can ask me:
 • **Get current time**: `what time is it?`
 • **Say hello**: `say hello to John`
 
-Just type your request in natural language and I'll help you out! 🚀
-
-**Example database transfer command:**
-```
-transfer dbo.DB_EVENTS from dw_production to TempObjDB
-```"""
+Just type your request in natural language and I'll help you out! 🚀"""
 
         for member in members_added:
             if member.id != turn_context.activity.recipient.id:
                 await turn_context.send_activity(MessageFactory.text(welcome_text))
 
-    async def on_turn(self, turn_context: TurnContext):
-        """Called on every turn of the conversation"""
-        await super().on_turn(turn_context)
 
-        # Save conversation state
-        await self.conversation_state.save_changes(turn_context)
-        await self.user_state.save_changes(turn_context)
-
-
-# Create the bot adapter and web app
-async def create_app():
+def create_app():
     # Bot Framework settings
     settings = BotFrameworkAdapterSettings(
         app_id=os.environ.get("MicrosoftAppId", ""),
@@ -125,39 +114,24 @@ async def create_app():
         print(f"❌ Error: {error}")
         try:
             await context.send_activity(
-                MessageFactory.text("❌ Sorry, an error occurred while processing your request."))
+                MessageFactory.text("❌ Sorry, an error occurred while processing your request.")
+            )
         except:
-            pass  # If we can't send the error message, just log it
+            pass
 
     adapter.on_turn_error = on_error
 
     # Define the main messaging endpoint
     async def messages(req: Request) -> Response:
         """Handle incoming messages from Teams"""
-        # Verify content type
-        content_type = req.headers.get("Content-Type", "")
-        if "application/json" not in content_type:
-            return Response(status=415, text="Unsupported Media Type - Expected application/json")
+        if "application/json" not in req.headers.get("Content-Type", ""):
+            return Response(status=415)
 
         try:
-            # Parse the request body
             body = await req.json()
-        except Exception as e:
-            print(f"❌ Error parsing JSON: {e}")
-            return Response(status=400, text="Invalid JSON in request body")
-
-        # Deserialize the activity
-        try:
             activity = Activity().deserialize(body)
-        except Exception as e:
-            print(f"❌ Error deserializing activity: {e}")
-            return Response(status=400, text="Invalid activity format")
+            auth_header = req.headers.get("Authorization", "")
 
-        # Get authorization header
-        auth_header = req.headers.get("Authorization", "")
-
-        try:
-            # Process the activity
             response = await adapter.process_activity(activity, auth_header, bot.on_turn)
 
             if response:
@@ -166,67 +140,43 @@ async def create_app():
 
         except Exception as e:
             print(f"❌ Error processing activity: {e}")
-            return Response(status=500, text=f"Error processing activity: {str(e)}")
+            return Response(status=500)
 
     # Health check endpoint
     async def health_check(req: Request) -> Response:
-        """Health check endpoint to verify bot is running"""
-        return json_response({
-            "status": "healthy",
-            "message": "DB Agent Bot is running!",
-            "endpoints": {
-                "messages": "/api/messages",
-                "health": "/health"
-            }
-        })
-
-    # Root endpoint with bot info
-    async def root_info(req: Request) -> Response:
-        """Root endpoint with bot information"""
-        return json_response({
-            "name": "Database Agent Bot",
-            "description": "AI-powered bot for database operations",
-            "version": "1.0.0",
-            "capabilities": [
-                "Database table transfers",
-                "Time queries",
-                "Greeting functionality"
-            ],
-            "endpoints": {
-                "messages": "/api/messages",
-                "health": "/health"
-            }
-        })
+        return json_response({"status": "healthy", "message": "Bot is running!"})
 
     # Create web application
     app = web.Application()
     app.router.add_post("/api/messages", messages)
     app.router.add_get("/health", health_check)
-    app.router.add_get("/", root_info)
 
     return app
 
 
 def main():
-    """Main function to start the bot"""
+    """Main function to start the bot - NO async here"""
     print("🤖 Starting Database Agent Bot for Microsoft Teams...")
     print("=" * 60)
-    print(f"🌐 Bot will be available at: http://localhost:3978")
+
+    # Get port from environment variable or default
+    port = int(os.environ.get("PORT", 3978))
+    host = "0.0.0.0"
+
+    print(f"🌐 Bot available at: http://{host}:{port}")
     print(f"📋 Endpoints:")
-    print(f"   • Messages: http://localhost:3978/api/messages")
-    print(f"   • Health:   http://localhost:3978/health")
-    print("=" * 60)
-    print("🔧 For external access, use localtunnel:")
-    print("   lt --port 3978")
+    print(f"   • Messages: http://{host}:{port}/api/messages")
+    print(f"   • Health:   http://{host}:{port}/health")
     print("=" * 60)
 
     try:
         app = create_app()
-        web.run_app(app, host="localhost", port=3978)
+        web.run_app(app, host=host, port=port)
     except KeyboardInterrupt:
         print("\n👋 Bot stopped by user")
     except Exception as e:
         print(f"❌ Error starting bot: {e}")
 
+
 if __name__ == "__main__":
-    main()
+    main()  # Call main() directly, not asyncio.run(main())

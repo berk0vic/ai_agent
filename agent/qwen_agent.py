@@ -1,9 +1,12 @@
 import os
+import sys
+
 import google.generativeai as genai
 from langchain.agents import initialize_agent, AgentType
 from langchain.tools import Tool
 from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
+sys.path.append(os.path.dirname(__file__))
 
 # Import your custom tools
 from tools import get_current_time, say_hello, transfer_table_data
