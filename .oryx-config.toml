@@ -1,2 +1,2 @@
 [platform]
-app_command_line = "gunicorn --workers 4 --bind 0.0.0.0:8000 teams_bot:create_app()"
+app_command_line = "gunicorn teams_bot:create_app()"
