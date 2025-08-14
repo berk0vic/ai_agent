@@ -1,2 +1,0 @@
-[platform]
-app_command_line = "gunicorn teams_bot:create_app()"
