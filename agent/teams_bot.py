@@ -160,7 +160,7 @@ def main():
     print("=" * 60)
 
     # Get port from environment variable or default
-    port = int(os.environ.get("PORT", 3978))
+    port = int(os.environ.get("PORT", 8000))
     host = "0.0.0.0"
 
     print(f"🌐 Bot available at: http://{host}:{port}")
