@@ -1,10 +1,10 @@
 import os
 import sys
 
-import google.generativeai as genai
+# We no longer need google.generativeai or ChatGoogleGenerativeAI for Qwen
 from langchain.agents import initialize_agent, AgentType
 from langchain.tools import Tool
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI  # Use ChatOpenAI for Qwen's API
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
 
@@ -13,9 +13,17 @@ from tools import get_current_time, say_hello, transfer_table_data
 
 # Load environment variables from the .env file
 load_dotenv()
+
 def create_gemini_conversational_agent():
-    genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.7)
+    # Configure the LLM to use your local Qwen model
+    # The Qwen API endpoint you provided is compatible with OpenAI's API format.
+    llm = ChatOpenAI(
+        model_name="Qwen/Qwen3-30B-A3B",
+        openai_api_base="http://192.168.7.22:81/v1",
+        # A placeholder key is required by LangChain, but may not be used by your local server
+        openai_api_key="sk-your-key", 
+        temperature=0.7
+    )
 
     tools = [
         Tool(name="get_current_time", func=get_current_time, description="Returns the current time."),
@@ -32,7 +40,7 @@ def create_gemini_conversational_agent():
     agent = initialize_agent(
         tools=tools,
         llm=llm,
-        agent=AgentType.STRUCTURED_CHAT_ZERO_SHOT_REACT_DESCRIPTION,  # Better for structured inputs
+        agent=AgentType.STRUCTURED_CHAT_ZERO_SHOT_REACT_DESCRIPTION,
         verbose=True
     )
     return agent
